@@ -5,10 +5,8 @@ export default function BirthdayWebsite() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [playingVideo, setPlayingVideo] = useState(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const [playOnScroll, setPlayOnScroll] = useState(false);
+  const [autoPlayVideoId, setAutoPlayVideoId] = useState(0);
   const videoFrameRef = useRef(null);
-  const videoContainerRef = useRef(null);
-  const [scrollProgress, setScrollProgress] = useState(0);
 
   // ===== CUSTOMIZE THIS SECTION WITH YOUR CONTENT =====
   const friendName = "Lakshitha"; // Change to her name
@@ -79,34 +77,27 @@ export default function BirthdayWebsite() {
   ];
   // ===== END CUSTOMIZATION SECTION =====
 
-  // Scroll event for video expansion effect and scroll reveal
+  // Intersection Observer for video auto-play when scrolled into view
   useEffect(() => {
-    const handleScroll = () => {
-      if (!videoContainerRef.current) return;
-
-      const containerRect = videoContainerRef.current.getBoundingClientRect();
-      const containerHeight = videoContainerRef.current.offsetHeight;
-      const windowHeight = window.innerHeight;
-
-      // Calculate scroll progress (0 = start of section, 1 = end of section)
-      const progress = Math.max(0, Math.min(1, (-containerRect.top) / (containerHeight - windowHeight)));
-      setScrollProgress(progress);
-      setPlayOnScroll(progress >= 0.3);
-
-      // Scroll reveal for quotes and videos - fade in both directions
-      document.querySelectorAll('.quote-card, .video-card').forEach(el => {
-        const rect = el.getBoundingClientRect();
-        if (rect.top < window.innerHeight * 0.8) {
-          el.classList.add('visible');
-        } else {
-          el.classList.remove('visible');
-        }
-      });
+    const observerOptions = {
+      threshold: 0.3,
     };
 
-    window.addEventListener('scroll', handleScroll);
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setAutoPlayVideoId(0); // Auto-play when in view
+        } else {
+          setAutoPlayVideoId(null); // Stop auto-play when scrolled away
+        }
+      });
+    }, observerOptions);
+
+    if (videoFrameRef.current) {
+      observer.observe(videoFrameRef.current);
+    }
+
+    return () => observer.disconnect();
   }, []);
 
   // Scroll reveal for hero sections - bidirectional
@@ -127,6 +118,25 @@ export default function BirthdayWebsite() {
     }, observerOptions);
 
     document.querySelectorAll('.hero-section').forEach(el => {
+      observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Scroll reveal for quotes and videos
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        } else {
+          entry.target.classList.remove('visible');
+        }
+      });
+    }, { threshold: 0.2 });
+
+    document.querySelectorAll('.quote-card, .video-card').forEach(el => {
       observer.observe(el);
     });
 
@@ -181,8 +191,8 @@ export default function BirthdayWebsite() {
 
       <section className="hero hero-section" style={{ '--hero-bg': `url('${heroBackgrounds[3]}')` }}>
         <div className="hero-content">
-          <p className="hero-big-question">And it's a</p>
-          <h2 className="hero-highlight">Top Stock Market Trader's</h2>
+          <p className="hero-big-question">And Stock Market is closed today because its </p>
+          <h2 className="hero-highlight">a Top Stock Market Trader's</h2>
           <p className="hero-subtext">Birthday! 📈</p>
         </div>
       </section>
@@ -266,32 +276,26 @@ export default function BirthdayWebsite() {
         </div>
       </section>
 
-      {/* VIDEOS - WITH EXPANSION EFFECT */}
+      {/* VIDEOS - SIMPLIFIED AUTO-PLAY */}
       <section className="section">
         <div className="container">
           <h2 className="section-title">Videos</h2>
         </div>
         
-        <div className="video-scroll-container" ref={videoContainerRef}>
+        <div className="video-scroll-container">
           <div className="video-sticky-wrapper">
             <div 
               className="video-frame"
               ref={videoFrameRef}
-              style={{
-                transform: `scale(${0.3 + scrollProgress * 0.65})`,
-                opacity: 0.3 + scrollProgress * 0.7,
-                transition: 'none'
-              }}
             >
               <iframe
                 width="100%"
                 height="100%"
-                src={`https://www.youtube.com/embed/${videos[0].id}?controls=1${playOnScroll ? '&autoplay=1' : ''}`}
+                src={`https://www.youtube.com/embed/${videos[0].id}?controls=1${autoPlayVideoId === 0 ? '&autoplay=1' : ''}`}
                 title={videos[0].title}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-                style={{ pointerEvents: scrollProgress < 1 ? 'none' : 'auto' }}
               ></iframe>
             </div>
           </div>
